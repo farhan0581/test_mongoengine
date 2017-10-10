@@ -4,9 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django import forms
 from django.db.models import Field
 from django.utils.functional import cached_property
-
 from mongoengine import fields
-
 from django_mongoengine.forms import fields as formfields
 
 _field_defaults = (

@@ -4,7 +4,9 @@ from django.core.urlresolvers import reverse
 from django.contrib.admin.exceptions import DisallowedModelAdminToField
 from django.contrib.admin import widgets, helpers
 from django.contrib.admin.utils import (
-    unquote, flatten_fieldsets, get_deleted_objects,
+    NestedObjects, construct_change_message, flatten_fieldsets,
+    get_deleted_objects, lookup_needs_distinct, model_format_dict, quote,
+    unquote,
 )
 from django.contrib.admin.options import (
     TO_FIELD_VAR, IS_POPUP_VAR,
@@ -44,6 +46,9 @@ from django.utils.translation import ugettext as _, ungettext
 from django.db import models, router, transaction
 from django.contrib import messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
+from django.utils.html import format_html
+from django.utils.http import urlencode, urlquote
+
 
 def get_content_type_for_model(obj):
     return apps.get_model("contenttypes.ContentType")()
@@ -153,6 +158,53 @@ class BaseDocumentAdmin(djmod.BaseModelAdmin):
                 'content_type_id': 0,
                 'object_id': obj.pk
             })
+
+    # logs
+    def log_addition(self, request, object, message):
+        """
+        Log that an object has been successfully added.
+        The default implementation creates an admin LogEntry object.
+        """
+        from django.contrib.admin.models import LogEntry, ADDITION
+        return LogEntry.objects.log_action(
+            user_id=request.user.pk,
+            content_type_id=get_content_type_for_model(object).pk,
+            object_id=object.pk,
+            object_repr=str(object),
+            action_flag=ADDITION,
+            change_message=message,
+        )
+
+    def log_change(self, request, object, message):
+        """
+        Log that an object has been successfully changed.
+        The default implementation creates an admin LogEntry object.
+        """
+        from django.contrib.admin.models import LogEntry, CHANGE
+        return LogEntry.objects.log_action(
+            user_id=request.user.pk,
+            content_type_id=get_content_type_for_model(object).pk,
+            object_id=object.pk,
+            object_repr=str(object),
+            action_flag=CHANGE,
+            change_message=message,
+        )
+
+    def log_deletion(self, request, object, object_repr):
+        """
+        Log that an object will be deleted. Note that this method must be
+        called before the deletion.
+        The default implementation creates an admin LogEntry object.
+        """
+        from django.contrib.admin.models import LogEntry, DELETION
+        return LogEntry.objects.log_action(
+            user_id=request.user.pk,
+            content_type_id=get_content_type_for_model(object).pk,
+            object_id=object.pk,
+            object_repr=object_repr,
+            action_flag=DELETION,
+        )
+
 
 
 @copy_class(djmod.ModelAdmin)

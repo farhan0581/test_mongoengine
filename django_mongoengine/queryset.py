@@ -41,7 +41,6 @@ class BaseQuerySet(object):
         return self
 
     def get_queryset(self):
-        print 'called'
         return self
 
     def latest(self, field_name):
